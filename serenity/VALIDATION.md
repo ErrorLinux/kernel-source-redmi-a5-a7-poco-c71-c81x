@@ -108,7 +108,8 @@ CONFIG_SECURITY_SELINUX_BOOTPARAM=y
 The stock `zram.ko` / `zsmalloc.ko` are **not** replaced, so the module ABI is
 preserved.  The stock zram module remains at its default `lzo-rle`.  The
 historical validation used the old `serenity_tweaks-v1.0.zip` with `lz4`; the
-current optional module in `serenity/tuning/` uses `lz4hc` and full MGLRU.
+current optional module in `serenity/tuning/` uses `lz4` with 60% zram and full
+MGLRU.
 
 ## KernelSU LKM
 

@@ -38,14 +38,15 @@ if [ -e /sys/block/zram0/disksize ]; then
     if [ "$cur_size" = "0" ] || [ -z "$cur_size" ]; then
         percent=$(getprop persist.serenity.zram_percent)
         case "$percent" in
-            ''|*[!0-9]*) percent=50 ;;
+            ''|*[!0-9]*) percent=60 ;;
         esac
         [ "$percent" -ge 20 ] 2>/dev/null || percent=20
         [ "$percent" -le 75 ] 2>/dev/null || percent=75
 
-        # lz4hc is compiled into the kernel (CONFIG_CRYPTO_LZ4HC=y); the
-        # stock zram module can use it through the crypto API.
-        write_file /sys/block/zram0/comp_algorithm lz4hc
+        # lz4 is the fast compressor and is compiled into the kernel
+        # (CONFIG_CRYPTO_LZ4=y).  Use lz4hc only if you prefer a better
+        # compression ratio over lower swap latency.
+        write_file /sys/block/zram0/comp_algorithm lz4
 
         mem_kb=$(sed -n 's/^MemTotal:[[:space:]]*\([0-9][0-9]*\).*/\1/p' /proc/meminfo 2>/dev/null)
         if [ -n "$mem_kb" ]; then

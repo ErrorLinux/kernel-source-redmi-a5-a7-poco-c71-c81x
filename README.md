@@ -189,7 +189,7 @@ This script:
 1. runs `make clean`;
 2. applies the ABI/thermal/MGLRU patches if needed;
 3. generates a fresh `serenity_defconfig`;
-4. enables full MGLRU, kyber and lz4hc;
+4. enables full MGLRU, kyber and lz4;
 5. switches from Full LTO to **ThinLTO**;
 6. builds `Image` and copies it to `out/Image`.
 
@@ -352,10 +352,11 @@ JOBS=$(nproc) ./build-serenity-mglru-tuned.sh
 
 ### Runtime zram warning
 
-The old crash was triggered by **4 GB zram + lz4** on a 4 GB phone. That is too
-aggressive. Use about 50% of RAM (~2 GB) with `lz4hc`, and never reset a live
-zram device. The optional tuning module does this only when zram is
-unconfigured.
+The old crash was triggered by **4 GB zram** on a 4 GB phone. That is too
+aggressive. Use about **60% of RAM (~2.4 GB)** with `lz4`, and never reset a
+live zram device. The optional tuning module does this only when zram is
+unconfigured. `lz4hc` is available as an optional ratio-first compressor, but
+it compresses slower than `lz4`.
 
 ---
 
@@ -425,15 +426,15 @@ It applies:
 | `vm.vfs_cache_pressure` | `100` |
 | `vm.dirty_ratio` / `dirty_background_ratio` | `20` / `5` |
 | `lru_gen/enabled` | `y` (sysfs shows `0x0003` on this build: full supported MGLRU) |
-| zram0 | 50% of RAM, `lz4hc`, only if unconfigured |
+| zram0 | 60% of RAM, `lz4`, only if unconfigured |
 | `read_ahead_kb` | `64` on real block devices |
 | scheduler | `kyber` if available |
 | CPU governor | `schedutil`; `performance` opt-in |
 
-`lz4hc` is the high-compression variant of LZ4: it compresses **slower** than
-`lz4` and usually produces a better ratio; decompression is still fast. It was
-chosen here for zram footprint, not for speed. If you prefer lower latency over
-compression ratio, change `lz4hc` to `lz4` in the module and reboot.
+`lz4` is the default because it compresses faster and keeps swap-out latency
+lower. `lz4hc` is the high-compression variant: it compresses **slower**, uses
+less zram for the same data, and has similar decompression speed. Use `lz4hc`
+only if memory footprint matters more than UI latency.
 
 Remove or disable `zram_12gb_fix` and any old `serenity_tweaks` line that writes
 `1` to `lru_gen/enabled` (that is `0x0001`, core-only).
@@ -505,8 +506,8 @@ ls -lh arch/arm64/boot/Image vmlinux
 
 ### 4 GB zram crash
 
-Do not use 4 GB zram on a 4 GB device. Use ~2 GB and `lz4hc`; remove old
-`zram_12gb_fix` modules before testing.
+Do not use 4 GB or 8 GB zram on a 4 GB device. Use about **60% (~2.4 GB) and
+`lz4`**; remove old `zram_12gb_fix` modules before testing.
 
 ---
 

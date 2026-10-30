@@ -43,8 +43,8 @@ cannot be baked into the kernel image:
 | `vm.vfs_cache_pressure` | `100` | default; avoids inode-cache bloat from `1` |
 | `vm.dirty_ratio` / `dirty_background_ratio` | `20` / `5` | Android-like writeback |
 | `lru_gen/enabled` | `y` | full MGLRU caps; on this kernel sysfs shows `0x0003` (core + MM walk) |
-| zram0 | 50% of RAM, `lz4hc`, only if unconfigured | ~2 GB swap on 4 GB, never reset live zram |
-| `lz4hc` | high compression | slower compression than `lz4`, better ratio; use `lz4` for lower latency |
+| zram0 | 60% of RAM, `lz4`, only if unconfigured | ~2.4 GB swap on 4 GB, never reset live zram |
+| `lz4` | fast compression | default for lower swap-out latency; `lz4hc` is optional for better ratio |
 | `read_ahead_kb` | `64` on real block devices | UFS/eMMC readahead |
 | scheduler | `kyber` if listed | lower latency on blk-mq |
 | CPU governor | `schedutil` default; `performance` opt-in | max clocks only when requested |
