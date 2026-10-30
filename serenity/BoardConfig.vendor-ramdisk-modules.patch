@@ -1,0 +1,18 @@
+--- a/BoardConfig.mk
++++ b/BoardConfig.mk
+@@ -134,6 +134,15 @@
+ # Bootloader
+ TARGET_NO_BOOTLOADER := true
+ 
++# Stock vendor_boot ramdisk modules.  The 168 Unisoc modules export the
++# sblock_*, sbuf_*, smsg_* and sprd_* symbols that vendor_dlkm needs; 65 of
++# them are loaded in the first stage by modules.load.  Extract them with
++# kernel-serenity/serenity/tools/extract-vendor-ramdisk-modules.py, then put
++# the .ko files and modules.load in prebuilts/vendor_ramdisk_modules.
++VENDOR_RAMDISK_MODULES_DIR := $(DEVICE_PATH)/prebuilts/vendor_ramdisk_modules
++BOARD_VENDOR_RAMDISK_KERNEL_MODULES := $(wildcard $(VENDOR_RAMDISK_MODULES_DIR)/*.ko)
++BOARD_VENDOR_RAMDISK_KERNEL_MODULES_LOAD := $(strip $(shell cat $(VENDOR_RAMDISK_MODULES_DIR)/modules.load))
++
+ # Recovery, the stock vendor_boot carries the recovery resources
+ BOARD_INCLUDE_RECOVERY_RAMDISK_IN_VENDOR_BOOT := true
+ BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := true

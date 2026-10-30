@@ -1,0 +1,19 @@
+--- a/include/linux/module.h
++++ b/include/linux/module.h
+@@ -474,10 +474,14 @@
+ 	unsigned int num_bpf_raw_events;
+ 	struct bpf_raw_event_map *bpf_raw_events;
+ #endif
+-#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
++	/*
++	 * Keep these fields even when BTF is disabled.  The stock Xiaomi
++	 * build has CONFIG_DEBUG_INFO_BTF_MODULES=y, and these two fields
++	 * are part of the module_layout ABI.  With BTF enabled they
++	 * are used normally; with BTF disabled they are unused padding.
++	 */
+ 	unsigned int btf_data_size;
+ 	void *btf_data;
+-#endif
+ #ifdef CONFIG_JUMP_LABEL
+ 	struct jump_entry *jump_entries;
+ 	unsigned int num_jump_entries;

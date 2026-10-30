@@ -1,0 +1,21 @@
+# Kernel build output
+/out/
+/vmlinux
+/vmlinux.o
+/vmlinux.symvers
+/System.map
+/Module.symvers
+/modules.builtin
+/modules.builtin.modinfo
+/modules.order
+/.config
+/.config.old
+/.scmversion
+/.version
+/.tmp_*
+/*.o
+/*.a
+/*.ko
+/*.mod
+/*.cmd
+/*.log

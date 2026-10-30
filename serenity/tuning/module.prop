@@ -1,0 +1,6 @@
+id=serenity_tuning
+name=Serenity 4GB Tuning
+version=v1.0
+versionCode=1
+author=Serenity tuning
+description=VM/MGLRU/zram + readahead 64 KiB + kyber + optional CPU performance for 4 GB Unisoc serenity

@@ -1,0 +1,28 @@
+--- a/BoardConfig.mk
++++ b/BoardConfig.mk
+@@ -86,17 +86,15 @@
+ BOARD_MKBOOTIMG_ARGS += --tags_offset 0x00000100
+ BOARD_MKBOOTIMG_ARGS += --dtb_offset 0x01f00000
+ 
+-# Kernel, the stock image ships as a prebuilt
+-# prebuilts/kernel and prebuilts/dtb.img come out of the stock boot and
+-# vendor_boot, prebuilts/dtbo.img is the stock dtbo partition
+-# The kernel is a prebuilt, the stock image out of the factory ROM. The
+-# LineageOS tree carries a kernel source, so the build looks for a
+-# configuration and refuses to go on without one, and the prebuilt flag is what
+-# makes it use the image instead of building one. It is not allowed on official
+-# builds, this is an unofficial one.
++# Kernel, built from the public GKI source at kernel/xiaomi/serenity.
++# See kernel/xiaomi/serenity/README-serenity.md for provenance and build steps.
++# The DTB/DTBO and the vendor modules are still stock Unisoc prebuilts.
++TARGET_KERNEL_SOURCE := kernel/xiaomi/serenity
+ TARGET_KERNEL_CONFIG := serenity_defconfig
+-TARGET_FORCE_PREBUILT_KERNEL := true
+-TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilts/kernel
++TARGET_KERNEL_CLANG_COMPILE := true
++TARGET_KERNEL_CLANG_VERSION := r450784e
++# TARGET_FORCE_PREBUILT_KERNEL := true
++# TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilts/kernel
+ TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilts/dtb.img
+ BOARD_PREBUILT_DTBOIMAGE := $(DEVICE_PATH)/prebuilts/dtbo.img
+ BOARD_KERNEL_IMAGE_NAME := Image

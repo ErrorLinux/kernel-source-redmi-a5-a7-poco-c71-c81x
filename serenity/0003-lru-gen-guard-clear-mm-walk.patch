@@ -1,0 +1,45 @@
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -4072,16 +4072,39 @@
+ 	return walk;
+ }
+ 
++static bool is_pgdat_mm_walk(struct lru_gen_mm_walk *walk)
++{
++	int nid;
++
++	for_each_online_node(nid) {
++		if (walk == &NODE_DATA(nid)->mm_walk)
++			return true;
++	}
++
++	return false;
++}
++
+ static void clear_mm_walk(void)
+ {
+ 	struct lru_gen_mm_walk *walk = current->reclaim_state->mm_walk;
++	bool walk_is_slab;
++
++	/*
++	 * Validate before touching walk->nr_pages: a corrupted pointer can be
++	 * unmapped as well as non-slab.  The static per-node pgdat->mm_walk
++	 * must never be freed and is not a slab object.
++	 */
++	walk_is_slab = walk && !is_pgdat_mm_walk(walk) &&
++		       virt_addr_valid(walk) && PageSlab(virt_to_page(walk));
+ 
+-	VM_WARN_ON_ONCE(walk && memchr_inv(walk->nr_pages, 0, sizeof(walk->nr_pages)));
+-	VM_WARN_ON_ONCE(walk && memchr_inv(walk->mm_stats, 0, sizeof(walk->mm_stats)));
++	VM_WARN_ON_ONCE(walk_is_slab &&
++			memchr_inv(walk->nr_pages, 0, sizeof(walk->nr_pages)));
++	VM_WARN_ON_ONCE(walk_is_slab &&
++			memchr_inv(walk->mm_stats, 0, sizeof(walk->mm_stats)));
+ 
+ 	current->reclaim_state->mm_walk = NULL;
+ 
+-	if (!current_is_kswapd())
++	if (!current_is_kswapd() && walk_is_slab)
+ 		kfree(walk);
+ }
+ 

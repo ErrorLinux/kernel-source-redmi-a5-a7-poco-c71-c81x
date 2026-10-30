@@ -1,0 +1,46 @@
+--- a/drivers/thermal/thermal_core.c
++++ b/drivers/thermal/thermal_core.c
+@@ -20,6 +20,8 @@
+ #include <linux/string.h>
+ #include <linux/of.h>
+ #include <linux/suspend.h>
++#include <linux/module.h>
++#include <linux/jiffies.h>
+ 
+ #define CREATE_TRACE_POINTS
+ #include <trace/events/thermal.h>
+@@ -44,6 +46,16 @@
+ static struct thermal_governor *def_governor;
+ 
+ /*
++ * Optional escape hatch for performance testing.  The thermal core keeps
++ * the polling work armed, but skips temperature updates and trip handling
++ * (including critical shutdown) while this is set.  Default is off so stock
++ * thermal behaviour is unchanged.
++ */
++static bool thermal_off;
++module_param_named(off, thermal_off, bool, 0644);
++MODULE_PARM_DESC(off, "Disable thermal temperature/trip handling (default: 0)");
++
++/*
+  * Governor section: set of functions to handle thermal governors
+  *
+  * Functions to help in the life cycle of thermal governors within
+@@ -495,6 +507,17 @@
+ 	if (atomic_read(&in_suspend))
+ 		return;
+ 
++	if (thermal_off) {
++		pr_warn_once("thermal: trip handling disabled by thermal_sys.off=1\n");
++		/*
++		 * Keep a slow poll running.  This costs one wakeup per second
++		 * while thermal handling is bypassed, but lets the parameter
++		 * be cleared at runtime without rebooting.
++		 */
++		thermal_zone_device_set_polling(tz, msecs_to_jiffies(1000));
++		return;
++	}
++
+ 	if (WARN_ONCE(!tz->ops->get_temp, "'%s' must not be called without "
+ 		      "'get_temp' ops set\n", __func__))
+ 		return;

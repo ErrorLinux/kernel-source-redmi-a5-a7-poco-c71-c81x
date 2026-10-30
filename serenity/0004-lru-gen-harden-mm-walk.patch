@@ -1,0 +1,97 @@
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -4053,10 +4053,50 @@
+ 	} while (err == -EAGAIN);
+ }
+ 
++static bool is_pgdat_mm_walk(struct lru_gen_mm_walk *walk)
++{
++	int nid;
++
++	for_each_online_node(nid) {
++		if (walk == &NODE_DATA(nid)->mm_walk)
++			return true;
++	}
++
++	return false;
++}
++
++/*
++ * The only walk clear_mm_walk() may free is the one set_mm_walk() allocated
++ * with kzalloc(): a slab object in the linear map.  current->reclaim_state
++ * is per task rather than per reclaim, so a nested reclaim can leave this
++ * slot holding the static per-node walk or an outright stale value; freeing
++ * either one faults in the page allocator's metadata lookup.
++ */
++static bool is_task_mm_walk(struct lru_gen_mm_walk *walk)
++{
++	if (!walk || is_pgdat_mm_walk(walk))
++		return false;
++
++	if (!virt_addr_valid(walk))
++		return false;
++
++	return PageSlab(virt_to_page(walk));
++}
++
+ static struct lru_gen_mm_walk *set_mm_walk(struct pglist_data *pgdat)
+ {
+ 	struct lru_gen_mm_walk *walk = current->reclaim_state->mm_walk;
+ 
++	/*
++	 * Do not propagate a pointer that this task cannot prove it owns:
++	 * the walk would be dereferenced and freed by lru_gen_shrink_lruvec()
++	 * and lru_gen_age_node() below.
++	 */
++	if (walk && !is_task_mm_walk(walk) && !is_pgdat_mm_walk(walk)) {
++		pr_warn_ratelimited("lru_gen: dropping invalid mm_walk %px\n", walk);
++		walk = NULL;
++	}
++
+ 	if (pgdat && current_is_kswapd()) {
+ 		VM_WARN_ON_ONCE(walk);
+ 
+@@ -4072,39 +4112,19 @@
+ 	return walk;
+ }
+ 
+-static bool is_pgdat_mm_walk(struct lru_gen_mm_walk *walk)
+-{
+-	int nid;
+-
+-	for_each_online_node(nid) {
+-		if (walk == &NODE_DATA(nid)->mm_walk)
+-			return true;
+-	}
+-
+-	return false;
+-}
+-
+ static void clear_mm_walk(void)
+ {
+ 	struct lru_gen_mm_walk *walk = current->reclaim_state->mm_walk;
+-	bool walk_is_slab;
+-
+-	/*
+-	 * Validate before touching walk->nr_pages: a corrupted pointer can be
+-	 * unmapped as well as non-slab.  The static per-node pgdat->mm_walk
+-	 * must never be freed and is not a slab object.
+-	 */
+-	walk_is_slab = walk && !is_pgdat_mm_walk(walk) &&
+-		       virt_addr_valid(walk) && PageSlab(virt_to_page(walk));
++	bool is_task_walk = is_task_mm_walk(walk);
+ 
+-	VM_WARN_ON_ONCE(walk_is_slab &&
++	VM_WARN_ON_ONCE(is_task_walk &&
+ 			memchr_inv(walk->nr_pages, 0, sizeof(walk->nr_pages)));
+-	VM_WARN_ON_ONCE(walk_is_slab &&
++	VM_WARN_ON_ONCE(is_task_walk &&
+ 			memchr_inv(walk->mm_stats, 0, sizeof(walk->mm_stats)));
+ 
+ 	current->reclaim_state->mm_walk = NULL;
+ 
+-	if (!current_is_kswapd() && walk_is_slab)
++	if (is_task_walk)
+ 		kfree(walk);
+ }
+ 
