@@ -283,10 +283,22 @@ CONFIG_LRU_GEN_ENABLED=y
 
 ```bash
 cat /sys/kernel/mm/lru_gen/enabled
-# expected: 0x7  (or y)
+# expected on this arm64 build: 0x0003
 ```
 
-`1` means core-only MGLRU; `y`/`0x7` means full MGLRU.
+The sysfs value is a capability bitmask, not a boolean:
+
+| Bit | Value | Capability |
+| :--- | :--- | :--- |
+| 0 | `0x0001` | `LRU_GEN_CORE` |
+| 1 | `0x0002` | `LRU_GEN_MM_WALK` |
+| 2 | `0x0004` | `LRU_GEN_NONLEAF_YOUNG` |
+
+`0x0003` means core + MM walk, which is **full MGLRU for this kernel**.
+`0x0001` is core-only. `0x0007` would require
+`CONFIG_ARCH_HAS_NONLEAF_PMD_YOUNG`, which is not enabled in this arm64
+config. Writing `y` requests all capabilities; the kernel only displays the
+ones it supports.
 
 ### Apply the guards to a fresh stock tree
 
@@ -412,14 +424,23 @@ It applies:
 | `vm.watermark_scale_factor` | `200` |
 | `vm.vfs_cache_pressure` | `100` |
 | `vm.dirty_ratio` / `dirty_background_ratio` | `20` / `5` |
-| `lru_gen/enabled` | `y` (full MGLRU) |
+| `lru_gen/enabled` | `y` (sysfs shows `0x0003` on this build: full supported MGLRU) |
 | zram0 | 50% of RAM, `lz4hc`, only if unconfigured |
 | `read_ahead_kb` | `64` on real block devices |
 | scheduler | `kyber` if available |
 | CPU governor | `schedutil`; `performance` opt-in |
 
+`lz4hc` is the high-compression variant of LZ4: it compresses **slower** than
+`lz4` and usually produces a better ratio; decompression is still fast. It was
+chosen here for zram footprint, not for speed. If you prefer lower latency over
+compression ratio, change `lz4hc` to `lz4` in the module and reboot.
+
 Remove or disable `zram_12gb_fix` and any old `serenity_tweaks` line that writes
-`1` to `lru_gen/enabled` (core-only).
+`1` to `lru_gen/enabled` (that is `0x0001`, core-only).
+
+Some stock ROMs overwrite `vm.swappiness` from vendor init at boot completion.
+On the stock serenity firmware, `init.ram.gms.rc` writes `150`; that can win
+over the module's `100`. Check after boot and reapply if needed.
 
 ---
 
@@ -430,13 +451,16 @@ uname -r
 # 5.15.194-android13-8-00019-gf4321180a397-ab15212794
 
 cat /sys/kernel/mm/lru_gen/enabled
-# 0x7 or y
+# 0x0003 on this kernel (full supported MGLRU)
 
 cat /sys/block/zram0/comp_algorithm
 cat /sys/block/zram0/disksize
 
-cat /sys/block/sda/queue/read_ahead_kb
-cat /sys/block/sda/queue/scheduler
+cat /proc/sys/vm/swappiness
+# module wants 100; some stock vendor init scripts overwrite it with 150
+
+cat /sys/block/mmcblk0/queue/read_ahead_kb
+cat /sys/block/mmcblk0/queue/scheduler
 
 dmesg | grep 'dropping invalid mm_walk'
 ```

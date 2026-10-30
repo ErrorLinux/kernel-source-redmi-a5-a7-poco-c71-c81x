@@ -37,13 +37,14 @@ cannot be baked into the kernel image:
 
 | Knob | Value | Why |
 |---|---|---|
-| `vm.swappiness` | `100` | Android zram default; not the old 200 |
+| `vm.swappiness` | `100` | Android zram default; some vendor init scripts overwrite it with 150 at boot completion |
 | `vm.page-cluster` | `0` | random zram faults should not read 128 KiB |
 | `vm.watermark_scale_factor` | `200` | earlier reclaim before hard pressure |
 | `vm.vfs_cache_pressure` | `100` | default; avoids inode-cache bloat from `1` |
 | `vm.dirty_ratio` / `dirty_background_ratio` | `20` / `5` | Android-like writeback |
-| `lru_gen/enabled` | `y` | full MGLRU caps |
+| `lru_gen/enabled` | `y` | full MGLRU caps; on this kernel sysfs shows `0x0003` (core + MM walk) |
 | zram0 | 50% of RAM, `lz4hc`, only if unconfigured | ~2 GB swap on 4 GB, never reset live zram |
+| `lz4hc` | high compression | slower compression than `lz4`, better ratio; use `lz4` for lower latency |
 | `read_ahead_kb` | `64` on real block devices | UFS/eMMC readahead |
 | scheduler | `kyber` if listed | lower latency on blk-mq |
 | CPU governor | `schedutil` default; `performance` opt-in | max clocks only when requested |
@@ -69,8 +70,9 @@ su -c 'setprop persist.serenity.cpu_performance 0'
 - Remove `zram_12gb_fix` (or any module that resets a live zram / sets
   `swappiness=200`).
 - `serenity_tweaks` writes `1` to `/sys/kernel/mm/lru_gen/enabled`, which is
-  **core-only** MGLRU.  On this kernel the default is full MGLRU.  Remove that
-  line or let this module's `service.sh` re-apply `y` after boot.
+  **core-only** MGLRU (`0x0001`).  On this kernel the default is full MGLRU
+  (`0x0003`: core + MM walk).  Remove that line or let this module's
+  `service.sh` re-apply `y` after boot.
 - Do not set 12 GB zram on a 4 GB phone; it turns RAM pressure into swap
   thrash and was the strongest trigger of the old panic.
 
