@@ -79,6 +79,9 @@ Image.
 | `PROVENANCE.md` | how the public GKI commit, config and toolchain were identified |
 | `0001-module-keep-btf-tail-fields.patch` | keeps `struct module` ABI when BTF is off |
 | `0002-thermal-off-param.patch` | adds the opt-in `thermal_sys.off` parameter |
+| `0003-lru-gen-guard-clear-mm-walk.patch` | refuses to free the static per-node MGLRU walk |
+| `0004-lru-gen-harden-mm-walk.patch` | validates task walks in `set_mm_walk()` |
+| `0005-lru-gen-walk-ownership-token.patch` | ownership token prevents freeing a stale `mm_walk` and corrupting the slab freelist |
 | `BoardConfig.vendor-ramdisk-modules.patch` | installs the stock 168-module vendor_boot ramdisk |
 | `tools/extract-vendor-ramdisk-modules.py` | extracts `.ko` + `modules.load` from stock `vendor_boot.img` |
 | `tools/boottool.py` | AVB-preserving boot image repacker used for the custom boot images |

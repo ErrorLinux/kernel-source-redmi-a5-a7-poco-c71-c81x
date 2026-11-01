@@ -1,0 +1,67 @@
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -4066,21 +4066,27 @@
+ }
+ 
+ /*
+- * The only walk clear_mm_walk() may free is the one set_mm_walk() allocated
+- * with kzalloc(): a slab object in the linear map.  current->reclaim_state
+- * is per task rather than per reclaim, so a nested reclaim can leave this
+- * slot holding the static per-node walk or an outright stale value; freeing
+- * either one faults in the page allocator's metadata lookup.
++ * Only a walk that set_mm_walk() allocated with kzalloc() may be freed.  Being
++ * a slab object in the linear map is not enough: current->reclaim_state is
++ * per task rather than per reclaim, so after a nested reclaim this slot can
++ * hold a live pointer copied from a dead stack frame.  kfree() of such a
++ * pointer frees somebody else's object and corrupts the slab freelist, which
++ * surfaces later as an unrelated crash in the allocator.
++ *
++ * bitmap[] is unused in this MGLRU revision (kept for the stock
++ * struct pglist_data layout), so its first word carries an ownership token.
+  */
++#define LRU_GEN_MM_WALK_MAGIC	0x4c52555f4d4d5741UL	/* "LRU_MMWA" */
++
+ static bool is_task_mm_walk(struct lru_gen_mm_walk *walk)
+ {
+ 	if (!walk || is_pgdat_mm_walk(walk))
+ 		return false;
+ 
+-	if (!virt_addr_valid(walk))
++	if (!virt_addr_valid(walk) || !PageSlab(virt_to_page(walk)))
+ 		return false;
+ 
+-	return PageSlab(virt_to_page(walk));
++	return walk->bitmap[0] == LRU_GEN_MM_WALK_MAGIC;
+ }
+ 
+ static struct lru_gen_mm_walk *set_mm_walk(struct pglist_data *pgdat)
+@@ -4093,7 +4099,7 @@
+ 	 * and lru_gen_age_node() below.
+ 	 */
+ 	if (walk && !is_task_mm_walk(walk) && !is_pgdat_mm_walk(walk)) {
+-		pr_warn_ratelimited("lru_gen: dropping invalid mm_walk %px\n", walk);
++		pr_warn_ratelimited("lru_gen: dropping unowned mm_walk %px\n", walk);
+ 		walk = NULL;
+ 	}
+ 
+@@ -4105,6 +4111,8 @@
+ 		VM_WARN_ON_ONCE(current_is_kswapd());
+ 
+ 		walk = kzalloc(sizeof(*walk), __GFP_HIGH | __GFP_NOMEMALLOC | __GFP_NOWARN);
++		if (walk)
++			walk->bitmap[0] = LRU_GEN_MM_WALK_MAGIC;
+ 	}
+ 
+ 	current->reclaim_state->mm_walk = walk;
+@@ -4124,8 +4132,10 @@
+ 
+ 	current->reclaim_state->mm_walk = NULL;
+ 
+-	if (is_task_walk)
++	if (is_task_walk) {
++		walk->bitmap[0] = 0;
+ 		kfree(walk);
++	}
+ }
+ 
+ static bool inc_min_seq(struct lruvec *lruvec, int type, bool can_swap)
